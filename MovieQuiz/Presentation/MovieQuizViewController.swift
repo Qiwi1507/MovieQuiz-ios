@@ -3,27 +3,32 @@ import UIKit
 final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
     
     @IBOutlet weak var imageView: UIImageView!
-    
     @IBOutlet weak var textLabel: UILabel!
-    
     @IBOutlet weak var counterLabel: UILabel!
     
+    // MARK: - Private Properties
     private var currentQuestionIndex: Int = 0
     private var correctAnswers: Int = 0
     private let questionsAmount: Int = 10
     private var currentQuestion: QuizQuestion?
     private var questionFactory: QuestionFactoryProtocol?
+    private var alertPresenter = AlertPresenter()
+    private var record = Set<Int>()
+    private var numberOfGames: Int = 0
     
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
+        
         questionFactory = QuestionFactory (delegate: self)
         questionFactory?.requestNextQuestion()
+        alertPresenter.viewController = self
     }
     
     override var preferredStatusBarStyle: UIStatusBarStyle {
         return .lightContent
     }
+    
     
     // MARK: - QuestionFactoryDelegate
     
@@ -39,7 +44,7 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
         }
     }
     
-    // MARK: - Actions
+    // MARK: - IBActions
     @IBAction func noButtonClicked(_ sender: UIButton) {
         guard let currentQuestion = currentQuestion else {
             return
@@ -57,7 +62,27 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
         showAnswerResult(isCorrect: givenAnswer == currentQuestion.correctAnswer)
     }
     
-    // MARK: - Private functions
+    // MARK: - Private methods
+    private func reset() {
+        self.numberOfGames += 1
+        self.currentQuestionIndex = 0
+    }
+    
+    
+    private func date() -> String {
+        let date = Date()
+        let currentDate = DateFormatter()
+        currentDate.dateFormat = "dd.MM.yy hh:mm"
+        let now = currentDate.string(from: date)
+        return now
+    }
+    
+    private func gameRecord(num: Int) -> Int {
+        record.insert(num)
+        return record.max() ?? 0
+    }
+    
+    
     private func convert(model: QuizQuestion) -> QuizStepViewModel {
         return QuizStepViewModel(
             image: UIImage(named: model.image) ?? UIImage(),
@@ -111,19 +136,37 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
     }
     
     private func showNextQuestionOrResults() {
+        imageView.layer.masksToBounds = true
+        imageView.layer.borderWidth = 0
+        
         if currentQuestionIndex == questionsAmount - 1 {
-            let text = correctAnswers == questionsAmount ?
-            "Поздравляем, Вы ответили на 10 из 10!" :
-            "Вы ответили на \(correctAnswers) из 10, попробуйте ещё раз!"
-            let viewModel = QuizResultsViewModel(
-                title: "Этот раунд окончен!",
-                text: text,
-                buttonText: "Сыграть ещё раз")
-            show(quiz: viewModel)
+            
+            let titleText = "Этот раунд окончен!"
+            let massageText = """
+                           Ваш результат: \(correctAnswers)/10
+                           Количество сыгранных квизов: \(numberOfGames)
+                           Рекорд: \(gameRecord(num: correctAnswers))/10 (\(date()))
+                           Средняя точность: \(correctAnswers * 10)%
+                           """
+            let buttonText = "Сыграть еще раз"
+            
+            
+            let viewModel = AlertModel(title: titleText,
+                                       message: massageText,
+                                       buttonText: buttonText) { [weak self] in
+                self?.currentQuestionIndex = 0
+                self?.correctAnswers = 0
+                
+                self?.questionFactory?.requestNextQuestion()
+            }
+            showQuizAlert(quiz: viewModel)
         } else {
             currentQuestionIndex += 1
             questionFactory?.requestNextQuestion()
         }
     }
+    
+    private func showQuizAlert(quiz model: AlertModel) {
+        alertPresenter.showAlert(model: model)
+    }
 }
-
