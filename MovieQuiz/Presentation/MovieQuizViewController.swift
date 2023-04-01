@@ -23,6 +23,7 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
         questionFactory = QuestionFactory (delegate: self)
         questionFactory?.requestNextQuestion()
         alertPresenter.viewController = self
+    
     }
     
     override var preferredStatusBarStyle: UIStatusBarStyle {
