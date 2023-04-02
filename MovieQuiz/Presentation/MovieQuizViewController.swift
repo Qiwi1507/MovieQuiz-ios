@@ -1,6 +1,6 @@
 import UIKit
 
-final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
+final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate, AlertPresenterDelegate {
     
     @IBOutlet weak var imageView: UIImageView!
     @IBOutlet weak var textLabel: UILabel!
@@ -10,15 +10,21 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
     private var currentQuestionIndex: Int = 0
     private var correctAnswers: Int = 0
     private let questionsAmount: Int = 10
+    
     private var currentQuestion: QuizQuestion?
     private var questionFactory: QuestionFactoryProtocol?
     private var alertPresenter = AlertPresenter()
+    private var statisticService:StatisticService?
     private var record = Set<Int>()
     private var numberOfGames: Int = 0
     
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        statisticService = StatisticServiceImplementation(userDefaults: UserDefaults.standard,
+                                                          decoder: JSONDecoder(),
+                                                          encoder: JSONEncoder())
         
         questionFactory = QuestionFactory (delegate: self)
         questionFactory?.requestNextQuestion()
@@ -141,26 +147,7 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
         imageView.layer.borderWidth = 0
         
         if currentQuestionIndex == questionsAmount - 1 {
-            
-            let titleText = "Этот раунд окончен!"
-            let massageText = """
-                           Ваш результат: \(correctAnswers)/10
-                           Количество сыгранных квизов: \(numberOfGames)
-                           Рекорд: \(gameRecord(num: correctAnswers))/10 (\(date()))
-                           Средняя точность: \(correctAnswers * 10)%
-                           """
-            let buttonText = "Сыграть еще раз"
-            
-            
-            let viewModel = AlertModel(title: titleText,
-                                       message: massageText,
-                                       buttonText: buttonText) { [weak self] in
-                self?.currentQuestionIndex = 0
-                self?.correctAnswers = 0
-                
-                self?.questionFactory?.requestNextQuestion()
-            }
-            showQuizAlert(quiz: viewModel)
+            showFinalResults()
         } else {
             currentQuestionIndex += 1
             questionFactory?.requestNextQuestion()
@@ -169,5 +156,26 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate {
     
     private func showQuizAlert(quiz model: AlertModel) {
         alertPresenter.showAlert(model: model)
+    }
+    
+    private func showFinalResults () {
+        statisticService?.store(correct: correctAnswers, total: questionsAmount)
+        guard let statisticService = statisticService else {
+            return ()
+        }
+        guard let bestGame = statisticService.bestGame else {
+            return ()
+        }
+        let text = "Ваш результат: \(correctAnswers)/10 Количество сыгранных раундов: \(statisticService.gamesCount) Рекорд: \(bestGame.correct)/10 (\(Date())) Средняя точность: \(String(format: "%.2f", statisticService.totalAccuracy))% "
+        
+        let alertModel = AlertModel(
+            title: "Этот раунд окончен!",
+            message: text,
+            buttonText: "Сыграть ещё раз") { [weak self] in
+                self?.currentQuestionIndex = 0
+                self?.correctAnswers = 0
+                self?.questionFactory?.requestNextQuestion()
+            }
+        self.alertPresenter.showAlert(model: alertModel)
     }
 }
