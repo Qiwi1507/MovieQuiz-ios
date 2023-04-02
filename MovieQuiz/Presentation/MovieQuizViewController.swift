@@ -166,7 +166,7 @@ final class MovieQuizViewController: UIViewController, QuestionFactoryDelegate, 
         guard let bestGame = statisticService.bestGame else {
             return ()
         }
-        let text = "Ваш результат: \(correctAnswers)/10 Количество сыгранных раундов: \(statisticService.gamesCount) Рекорд: \(bestGame.correct)/10 (\(Date())) Средняя точность: \(String(format: "%.2f", statisticService.totalAccuracy))% "
+        let text = "Ваш результат: \(correctAnswers)/10 \n Количество сыгранных квизов: \(statisticService.gamesCount)\n Рекорд: \(bestGame.correct)/10 \n (\(Date())) Средняя точность: \(String(format: "%.2f", statisticService.totalAccuracy))% "
         
         let alertModel = AlertModel(
             title: "Этот раунд окончен!",
